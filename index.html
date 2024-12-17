@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مراجعة الضرب مع التعذية الراجعة</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            /* ترتيب عمودي */
+            min-height: 100vh;
+            /* ارتفاع الشاشة كحد أدنى */
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
+        #game-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 90%;
+            width: 600px;
+            margin: 20px auto 0;
+            /* هامش علوي وتوسيط أفقي */
+        }
+
+        #question-container {
+            background-color: #f8f8f8;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        #question {
+            font-size: 2em;
+        }
+
+        .card {
+            /* أنماط البطاقات */
+            display: inline-block;
+            width: 80px;
+            height: 60px;
+            margin: 5px;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            line-height: 60px;
+            font-size: 1.2em;
+            cursor: pointer;
+            user-select: none;
+            background-color: #e0e0e0;
+        }
+
+        .correct {
+            background-color: lightgreen;
+        }
+
+        .incorrect {
+            background-color: lightcoral;
+        }
+
+        #score {
+            margin-top: 20px;
+        }
+
+        button {
+            /* أنماط الأزرار */
+            margin: 5px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+
+        button.paused {
+            background-color: orange;
+        }
+
+        footer {
+            background-color: #e0e0e0;
+            padding: 10px;
+            text-align: center;
+            margin-top: auto;
+            /* هامش علوي تلقائي مهم جدًا */
+            width: 100%;
+            /* اجعل التذييل بعرض كامل الشاشة */
+        }
+
+        @media (max-width: 500px) {
+
+            /* تنسيقات الشاشات الصغيرة */
+            .card {
+                width: 60px;
+                height: 40px;
+                line-height: 40px;
+                font-size: 1em;
+            }
+
+            #question {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="game-container">
+        <h1> راجع جداول الضرب بنفسك</h1>
+        <p>ميزة هذه المراجعة هي تفعيل التغذية الراجعة</p>
+        <div id="question-container">
+            <div id="question"></div>
+        </div>
+        <div id="cards"></div>
+        <div id="score">النقاط: 0 / 0</div>
+        <button id="start-button">ابدأ من جديد</button>
+        <button id="pause-button">إيقاف مؤقت</button>
+        <button id="resume-button" style="display: none;">استئناف</button>
+
+        <button id="end-button">إنهاء اللعبة</button>
+
+    </div>
+    <script>
+        const questionDiv = document.getElementById('question');
+        const cardsDiv = document.getElementById('cards');
+        const scoreDiv = document.getElementById('score');
+        const startButton = document.getElementById('start-button');
+        const pauseButton = document.getElementById('pause-button');
+        const resumeButton = document.getElementById('resume-button');
+        const endButton = document.getElementById('end-button');
+        let num1, num2, correctAns, score = 0, totalQuestions = 0;
+        let isPaused = false;
+
+        function toArabicNumeral(num) {
+            const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+            return num.toString().split('').map(digit => arabicNumerals[digit]).join('');
+        }
+
+        function generateAnswers(num1, num2) {
+            const possibleAnswers = new Set();
+            for (let i = 1; i <= 10; i++) {
+                possibleAnswers.add(num1 * i);
+                possibleAnswers.add(num2 * i);
+            }
+            const answers = [correctAns];
+            while (answers.length < 3 && possibleAnswers.size > 0) {
+                const possibleAnswersArray = Array.from(possibleAnswers);
+                const randomIndex = Math.floor(Math.random() * possibleAnswersArray.length);
+                const randomAnswer = possibleAnswersArray[randomIndex];
+
+                if (!answers.includes(randomAnswer) && randomAnswer !== correctAns) {
+                    answers.push(randomAnswer);
+                }
+                if (possibleAnswersArray.length === 1 && !answers.includes(possibleAnswersArray[0]) && correctAns != possibleAnswersArray[0]) {
+                    answers.push(possibleAnswersArray[0])
+                }
+            }
+            if (answers.length < 3) {
+                return [];
+            }
+            return answers;
+        }
+
+        function shuffleArray(array) { // إضافة دالة shuffleArray هنا
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function generateQuestion() {
+            num1 = Math.floor(Math.random() * 10) + 1;
+            num2 = Math.floor(Math.random() * 10) + 1;
+            correctAns = num1 * num2;
+            questionDiv.textContent = `${toArabicNumeral(num1)} × ${toArabicNumeral(num2)} = ?`;
+
+            let answers = generateAnswers(num1, num2);
+            while (answers.length !== 3) {
+                num1 = Math.floor(Math.random() * 10) + 1;
+                num2 = Math.floor(Math.random() * 10) + 1;
+                correctAns = num1 * num2;
+                questionDiv.textContent = `${toArabicNumeral(num1)} × ${toArabicNumeral(num2)} = ?`;
+                answers = generateAnswers(num1, num2);
+            }
+
+            cardsDiv.innerHTML = '';
+            shuffleArray(answers);
+
+            answers.forEach(answer => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.textContent = toArabicNumeral(answer);
+                card.addEventListener('click', () => checkAnswer(card, answer));
+                cardsDiv.appendChild(card);
+            });
+        }
+        function generateQuestion() {
+            num1 = Math.floor(Math.random() * 10) + 1;
+            num2 = Math.floor(Math.random() * 10) + 1;
+            correctAns = num1 * num2;
+            questionDiv.textContent = `${toArabicNumeral(num1)} × ${toArabicNumeral(num2)} = ?`;
+
+            let answers = generateAnswers(num1, num2);
+            // إذا لم نتمكن من توليد 3 إجابات مختلفة (حالة نادرة)، نعيد توليد السؤال
+            while (answers.length !== 3) {
+                num1 = Math.floor(Math.random() * 10) + 1;
+                num2 = Math.floor(Math.random() * 10) + 1;
+                correctAns = num1 * num2;
+                questionDiv.textContent = `${toArabicNumeral(num1)} × ${toArabicNumeral(num2)} = ?`;
+                answers = generateAnswers(num1, num2);
+            }
+            cardsDiv.innerHTML = '';
+            shuffleArray(answers);
+
+            answers.forEach(answer => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.textContent = toArabicNumeral(answer);
+                card.addEventListener('click', () => checkAnswer(card, answer));
+                cardsDiv.appendChild(card);
+            });
+        }
+        function toArabicNumeral(num) { // تحويل إلى أرقام هندية
+            const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+            return num.toString().split('').map(digit => arabicNumerals[digit]).join('');
+        }
+        function generateQuestion() {
+            num1 = Math.floor(Math.random() * 10) + 1;
+            num2 = Math.floor(Math.random() * 10) + 1;
+            correctAns = num1 * num2;
+            questionDiv.textContent = `${toArabicNumeral(num1)} × ${toArabicNumeral(num2)} = ?`;
+            const answers = generateAnswers(num1, num2); // استدعاء وظيفة توليد الإجابات من النواتج الصحيحة
+            cardsDiv.innerHTML = ''; // مسح البطاقات القديمة
+            shuffleArray(answers);
+            answers.forEach(answer => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.textContent = toArabicNumeral(answer);
+                card.addEventListener('click', () => checkAnswer(card, answer));
+                cardsDiv.appendChild(card);
+            });
+        }
+        function generateAnswers(num1, num2) { // توليد إجابات من نواتج الضرب الصحيحة
+            const allMultiples = [];
+            for (let i = 1; i <= 10; i++) {
+                allMultiples.push(num1 * i);
+                allMultiples.push(num2 * i);
+            }
+            const uniqueMultiples = [...new Set(allMultiples)]; // إزالة التكرارات
+            const answers = [correctAns];
+            while (answers.length < 3) {
+                const randIndex = Math.floor(Math.random() * uniqueMultiples.length);
+                const randAns = uniqueMultiples[randIndex];
+                if (!answers.includes(randAns)) {
+                    answers.push(randAns);
+                }
+            }
+            return answers;
+        }
+        function checkAnswer(selectedCard, userAnswer) {
+            if (isPaused) return; // لا تفعل شيئًا إذا كانت اللعبة متوقفة مؤقتًا
+
+            totalQuestions++;
+            if (userAnswer === correctAns) {
+                score++;
+                selectedCard.classList.add("correct");
+                setTimeout(generateQuestion, 1000);
+            } else {
+                selectedCard.classList.add("incorrect");
+
+            }
+            updateScore();
+        }
+        function updateScore() {
+            scoreDiv.textContent = `النقاط: ${toArabicNumeral(score)} / ${toArabicNumeral(totalQuestions)}`;
+        }
+        startButton.addEventListener('click', () => {
+            score = 0;
+            totalQuestions = 0;
+            updateScore();
+            generateQuestion();
+        });
+        pauseButton.addEventListener('click', () => {
+            isPaused = true;
+            pauseButton.classList.add("paused")
+            pauseButton.style.display = "none";
+            resumeButton.style.display = "inline-block";
+        });
+        resumeButton.addEventListener('click', () => {
+            isPaused = false;
+            pauseButton.classList.remove("paused")
+
+            resumeButton.style.display = "none";
+            pauseButton.style.display = "inline-block";
+
+        });
+
+        endButton.addEventListener('click', () => {
+            // يمكنك هنا إضافة أي إجراءات لإنهاء اللعبة
+            score = 0;
+            totalQuestions = 0;
+            updateScore();
+            questionDiv.textContent = ""
+            cardsDiv.innerHTML = ""
+        });
+
+        generateQuestion();
+
+    </script>
+    <!-- تذييل -->
+    <footer>
+        <p>فكرة وإعداد/فنون الرياضيات ـ إشراف المعلمة/سعاد الغامدي ـ تنفيذ/الذكاء الاصطناعي</p>
+    </footer>
+</body>
+
+</html>
